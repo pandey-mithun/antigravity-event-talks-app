@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BigQuery Release Notes Hub</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Premium Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar / Header -->
+        <header class="header">
+            <div class="header-logo">
+                <div class="logo-icon">
+                    <i class="fa-solid fa-database database-glow"></i>
+                </div>
+                <div>
+                    <h1>BQ Notes</h1>
+                    <p class="tagline">Google BigQuery Release Tracker</p>
+                </div>
+            </div>
+
+            <!-- Stats summary -->
+            <div class="header-stats">
+                <div class="stat-card">
+                    <span class="stat-label">Total Updates</span>
+                    <span class="stat-value" id="stat-total">0</span>
+                </div>
+            </div>
+
+            <div class="header-actions">
+                <button id="refresh-btn" class="btn btn-primary" onclick="fetchUpdates(true)">
+                    <i id="refresh-icon" class="fa-solid fa-rotate"></i>
+                    <span>Refresh</span>
+                </button>
+            </div>
+            
+            <div class="footer-attribution">
+                <p>Data sourced from official feed.</p>
+                <p class="last-sync-text">Last synced: <span id="last-sync-time">Never</span></p>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Search & Filters Toolbar -->
+            <section class="toolbar">
+                <div class="search-wrapper">
+                    <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                    <input type="text" id="search-input" placeholder="Search updates, keywords, features..." oninput="filterUpdates()">
+                </div>
+                
+                <div class="filters-scroll">
+                    <div class="filter-pills" id="type-filters">
+                        <button class="filter-pill active" onclick="setFilterType('all')">
+                            All <span class="pill-count" id="count-all">0</span>
+                        </button>
+                        <button class="filter-pill" onclick="setFilterType('Feature')">
+                            <i class="fa-solid fa-wand-magic-sparkles text-feature"></i> Features <span class="pill-count" id="count-feature">0</span>
+                        </button>
+                        <button class="filter-pill" onclick="setFilterType('Change')">
+                            <i class="fa-solid fa-code-compare text-change"></i> Changes <span class="pill-count" id="count-change">0</span>
+                        </button>
+                        <button class="filter-pill" onclick="setFilterType('Issue')">
+                            <i class="fa-solid fa-triangle-exclamation text-issue"></i> Issues <span class="pill-count" id="count-issue">0</span>
+                        </button>
+                        <button class="filter-pill" onclick="setFilterType('Deprecation')">
+                            <i class="fa-solid fa-ban text-deprecation"></i> Deprecated <span class="pill-count" id="count-deprecation">0</span>
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Loading Spinner / Error state -->
+            <div id="loader" class="loader-container">
+                <div class="spinner"></div>
+                <p>Fetching latest release notes from Google Cloud feed...</p>
+            </div>
+
+            <div id="error-message" class="error-container hidden">
+                <i class="fa-solid fa-triangle-exclamation error-icon"></i>
+                <h3>Oops! Something went wrong</h3>
+                <p id="error-text">We couldn't fetch the release notes right now.</p>
+                <button class="btn btn-secondary" onclick="fetchUpdates(true)">Try Again</button>
+            </div>
+
+            <!-- Empty State -->
+            <div id="empty-state" class="empty-container hidden">
+                <i class="fa-solid fa-folder-open empty-icon"></i>
+                <h3>No updates found</h3>
+                <p>Try resetting your filters or typing another search query.</p>
+            </div>
+
+            <!-- Release Notes List -->
+            <section id="notes-list" class="notes-grid">
+                <!-- Cards will be dynamically inserted here -->
+            </section>
+        </main>
+    </div>
+
+    <!-- Slide-over Drawer for Tweeting -->
+    <div id="tweet-drawer" class="drawer-overlay hidden" onclick="closeDrawer(event)">
+        <div class="drawer" onclick="event.stopPropagation()">
+            <div class="drawer-header">
+                <h2><i class="fa-brands fa-x-twitter"></i> Customize Tweet</h2>
+                <button class="close-btn" onclick="toggleDrawer(false)">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            
+            <div class="drawer-body">
+                <div class="update-preview-box">
+                    <span class="preview-tag" id="drawer-update-type">Feature</span>
+                    <span class="preview-date" id="drawer-update-date">June 15, 2026</span>
+                    <div class="preview-content" id="drawer-update-content">
+                        Loading content snippet...
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="tweet-textarea">Tweet Content</label>
+                    <textarea id="tweet-textarea" rows="8" oninput="updateCharCount()"></textarea>
+                    <div class="textarea-footer">
+                        <span id="char-counter" class="char-count">0 / 280</span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Quick Hashtags</label>
+                    <div class="hashtag-selector">
+                        <button class="hashtag-pill" onclick="toggleHashtag('#BigQuery')">#BigQuery</button>
+                        <button class="hashtag-pill" onclick="toggleHashtag('#GoogleCloud')">#GoogleCloud</button>
+                        <button class="hashtag-pill" onclick="toggleHashtag('#GCP')">#GCP</button>
+                        <button class="hashtag-pill" onclick="toggleHashtag('#DataEngineering')">#DataEngineering</button>
+                        <button class="hashtag-pill" onclick="toggleHashtag('#Gemini')">#Gemini</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="drawer-footer">
+                <button class="btn btn-secondary btn-full" onclick="toggleDrawer(false)">Cancel</button>
+                <button class="btn btn-primary btn-full" onclick="publishTweet()">
+                    <i class="fa-brands fa-x-twitter"></i> Post to X / Twitter
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JS Logic -->
+    <script>
+        let allUpdates = [];
+        let activeFilterType = 'all';
+
+        // Load the page
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchUpdates(false);
+        });
+
+        async function fetchUpdates(force = false) {
+            const loader = document.getElementById('loader');
+            const list = document.getElementById('notes-list');
+            const errorContainer = document.getElementById('error-message');
+            const refreshIcon = document.getElementById('refresh-icon');
+            
+            // Set loading states
+            loader.classList.remove('hidden');
+            list.classList.add('loading-opacity');
+            errorContainer.classList.add('hidden');
+            refreshIcon.classList.add('fa-spin');
+
+            try {
+                const response = await fetch(`/api/release-notes${force ? '?refresh=true' : ''}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    allUpdates = data.updates;
+                    document.getElementById('last-sync-time').innerText = formatSyncTime(data.cached_at);
+                    
+                    // Render everything
+                    renderDashboard();
+                } else {
+                    showError(data.error || 'Server returned an error');
+                }
+            } catch (err) {
+                showError(err.message || 'Failed to fetch release notes.');
+            } finally {
+                loader.classList.add('hidden');
+                list.classList.remove('loading-opacity');
+                refreshIcon.classList.remove('fa-spin');
+            }
+        }
+
+        function formatSyncTime(epoch) {
+            if (!epoch) return 'Never';
+            const date = new Date(epoch * 1000);
+            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        }
+
+        function showError(msg) {
+            document.getElementById('error-text').innerText = msg;
+            document.getElementById('error-message').classList.remove('hidden');
+            document.getElementById('notes-list').innerHTML = '';
+        }
+
+        function renderDashboard() {
+            // Update stats counts
+            const counts = { all: allUpdates.length, Feature: 0, Change: 0, Issue: 0, Deprecation: 0 };
+            
+            allUpdates.forEach(update => {
+                const normalizedType = update.type;
+                if (counts[normalizedType] !== undefined) {
+                    counts[normalizedType]++;
+                }
+            });
+
+            document.getElementById('stat-total').innerText = counts.all;
+            document.getElementById('count-all').innerText = counts.all;
+            document.getElementById('count-feature').innerText = counts.Feature;
+            document.getElementById('count-change').innerText = counts.Change;
+            document.getElementById('count-issue').innerText = counts.Issue;
+            document.getElementById('count-deprecation').innerText = counts.Deprecation;
+
+            filterUpdates();
+        }
+
+        function setFilterType(type) {
+            activeFilterType = type;
+            
+            // Update UI filter state
+            const pills = document.querySelectorAll('.filter-pill');
+            pills.forEach(pill => pill.classList.remove('active'));
+            
+            // Highlight current
+            const targetIndex = ['all', 'Feature', 'Change', 'Issue', 'Deprecation'].indexOf(type);
+            if (targetIndex !== -1) {
+                pills[targetIndex].classList.add('active');
+            }
+            
+            filterUpdates();
+        }
+
+        function filterUpdates() {
+            const query = document.getElementById('search-input').value.toLowerCase();
+            const listContainer = document.getElementById('notes-list');
+            const emptyState = document.getElementById('empty-state');
+            
+            listContainer.innerHTML = '';
+            
+            const filtered = allUpdates.filter(update => {
+                // Type match
+                if (activeFilterType !== 'all' && update.type !== activeFilterType) {
+                    return false;
+                }
+                
+                // Search match
+                if (query) {
+                    const inText = update.text.toLowerCase().includes(query);
+                    const inDate = update.date.toLowerCase().includes(query);
+                    const inType = update.type.toLowerCase().includes(query);
+                    return inText || inDate || inType;
+                }
+                
+                return true;
+            });
+
+            if (filtered.length === 0) {
+                emptyState.classList.remove('hidden');
+            } else {
+                emptyState.classList.add('hidden');
+                filtered.forEach(update => {
+                    const card = createCard(update);
+                    listContainer.appendChild(card);
+                });
+            }
+        }
+
+        function createCard(update) {
+            const card = document.createElement('article');
+            card.className = `note-card border-${update.type.toLowerCase()}`;
+            
+            let icon = 'fa-info-circle';
+            if (update.type === 'Feature') icon = 'fa-wand-magic-sparkles';
+            else if (update.type === 'Change') icon = 'fa-code-compare';
+            else if (update.type === 'Issue') icon = 'fa-triangle-exclamation';
+            else if (update.type === 'Deprecation') icon = 'fa-ban';
+
+            card.innerHTML = `
+                <div class="card-header">
+                    <span class="card-badge badge-${update.type.toLowerCase()}">
+                        <i class="fa-solid ${icon}"></i>
+                        ${update.type}
+                    </span>
+                    <time class="card-date">${update.date}</time>
+                </div>
+                <div class="card-body">
+                    ${update.html}
+                </div>
+                <div class="card-footer">
+                    <a href="${update.link}" target="_blank" class="card-link">
+                        <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                        <span>Docs</span>
+                    </a>
+                    <button class="btn btn-tweet" onclick="openTweetDrawer('${encodeURIComponent(JSON.stringify(update))}')">
+                        <i class="fa-brands fa-x-twitter"></i>
+                        <span>Tweet</span>
+                    </button>
+                </div>
+            `;
+            return card;
+        }
+
+        // Drawer Logic
+        let selectedUpdate = null;
+
+        function openTweetDrawer(encodedUpdate) {
+            selectedUpdate = JSON.parse(decodeURIComponent(encodedUpdate));
+            
+            document.getElementById('drawer-update-type').className = `preview-tag badge-${selectedUpdate.type.toLowerCase()}`;
+            document.getElementById('drawer-update-type').innerText = selectedUpdate.type;
+            document.getElementById('drawer-update-date').innerText = selectedUpdate.date;
+            document.getElementById('drawer-update-content').innerText = selectedUpdate.text;
+            
+            // Generate standard prefilled tweet text
+            const tweetText = `📢 BigQuery ${selectedUpdate.type} (${selectedUpdate.date}):\n\n${truncateText(selectedUpdate.text, 140)}\n\nRead details: ${selectedUpdate.link}\n\n#BigQuery #GoogleCloud`;
+            
+            document.getElementById('tweet-textarea').value = tweetText;
+            updateCharCount();
+            
+            // Highlight used hashtags in drawer
+            const hashtags = ['#BigQuery', '#GoogleCloud', '#GCP', '#DataEngineering', '#Gemini'];
+            const pills = document.querySelectorAll('.hashtag-pill');
+            pills.forEach(pill => {
+                const tag = pill.innerText;
+                if (tweetText.includes(tag)) {
+                    pill.classList.add('active');
+                } else {
+                    pill.classList.remove('active');
+                }
+            });
+
+            toggleDrawer(true);
+        }
+
+        function truncateText(text, length) {
+            if (text.length <= length) return text;
+            return text.substring(0, length - 3) + '...';
+        }
+
+        function toggleDrawer(show) {
+            const drawer = document.getElementById('tweet-drawer');
+            if (show) {
+                drawer.classList.remove('hidden');
+                setTimeout(() => drawer.classList.add('open'), 10);
+            } else {
+                drawer.classList.remove('open');
+                setTimeout(() => drawer.classList.add('hidden'), 300);
+            }
+        }
+
+        function closeDrawer(event) {
+            toggleDrawer(false);
+        }
+
+        function updateCharCount() {
+            const textarea = document.getElementById('tweet-textarea');
+            const counter = document.getElementById('char-counter');
+            const count = textarea.value.length;
+            
+            counter.innerText = `${count} / 280`;
+            if (count > 280) {
+                counter.classList.add('text-danger');
+            } else {
+                counter.classList.remove('text-danger');
+            }
+        }
+
+        function toggleHashtag(tag) {
+            const textarea = document.getElementById('tweet-textarea');
+            let text = textarea.value;
+            
+            // Find pill to toggle class
+            const pills = document.querySelectorAll('.hashtag-pill');
+            let targetPill = null;
+            pills.forEach(p => {
+                if (p.innerText === tag) targetPill = p;
+            });
+
+            if (text.includes(tag)) {
+                // Remove hashtag
+                text = text.replace(new RegExp(`\\s*${tag}`, 'g'), '');
+                if (targetPill) targetPill.classList.remove('active');
+            } else {
+                // Add hashtag before other hashtags or at the end
+                if (text.includes('#')) {
+                    const firstHash = text.indexOf('#');
+                    text = text.slice(0, firstHash) + tag + ' ' + text.slice(firstHash);
+                } else {
+                    text = text.trim() + '\n\n' + tag;
+                }
+                if (targetPill) targetPill.classList.add('active');
+            }
+            
+            textarea.value = text.replace(/\s+/g, ' ').replace(/\s*#/, '\n\n#').trim();
+            updateCharCount();
+        }
+
+        function publishTweet() {
+            const tweetText = document.getElementById('tweet-textarea').value;
+            const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}`;
+            window.open(twitterUrl, '_blank');
+        }
+    </script>
+</body>
+</html>
